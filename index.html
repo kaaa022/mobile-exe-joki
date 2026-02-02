@@ -2,11 +2,11 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Adventure Runner</title>
+<title>Photo Runner</title>
 <style>
 body {
     margin: 0;
-    background: linear-gradient(#0f172a, #020617);
+    background: linear-gradient(#020617, #000);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -32,7 +32,7 @@ canvas {
 .overlay {
     position: absolute;
     inset: 0;
-    background: rgba(2,6,23,0.9);
+    background: rgba(0,0,0,0.85);
     display: none;
     justify-content: center;
     align-items: center;
@@ -42,7 +42,6 @@ canvas {
 .overlay h2 {
     color: #22d3ee;
     font-size: 32px;
-    margin-bottom: 10px;
 }
 
 button {
@@ -50,15 +49,15 @@ button {
     border-radius: 25px;
     border: none;
     background: #22d3ee;
-    cursor: pointer;
     font-weight: bold;
+    cursor: pointer;
 }
 </style>
 </head>
 <body>
 
 <div class="game">
-<h2>🏃 Adventure Runner</h2>
+<h2>🏃 PHOTO RUNNER</h2>
 <canvas id="game" width="600" height="350"></canvas>
 
 <div class="overlay" id="overlay">
@@ -66,7 +65,7 @@ button {
     <button onclick="restart()">Main Lagi</button>
 </div>
 
-<p>⬅ ➡ jalan | ⬆ lompat</p>
+<p>⬅ ➡ gerak | ⬆ lompat</p>
 </div>
 
 <script>
@@ -74,26 +73,22 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 const playerImg = new Image();
-playerImg.src = "https://cdn.phototourl.com/uploads/2026-01-24-677348da-e502-41e5-9a88-7acc26aada43.jpg";
+playerImg.src = "player.png"; // FOTO KAMU
 
-const coinImg = new Image();
-coinImg.src = "https://ibb.co.com/S4BvhXf3";
-
-let player, platforms, coins, keys;
+let player, obstacles, score, keys;
 
 function init() {
-    player = { x: 50, y: 200, w: 40, h: 60, vx: 0, vy: 0, onGround: false };
-    platforms = [
-        {x:0, y:300, w:600, h:50},
-        {x:150, y:240, w:120, h:15},
-        {x:320, y:200, w:120, h:15},
-        {x:480, y:160, w:100, h:15}
-    ];
-    coins = [
-        {x:180, y:200, taken:false},
-        {x:350, y:160, taken:false},
-        {x:510, y:120, taken:false}
-    ];
+    player = {
+        x: 80,
+        y: 250,
+        w: 60,
+        h: 80,
+        vy: 0,
+        onGround: true
+    };
+
+    obstacles = [];
+    score = 0;
     keys = {};
     document.getElementById("overlay").style.display = "none";
 }
@@ -101,74 +96,71 @@ function init() {
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
+function spawnObstacle() {
+    obstacles.push({
+        x: canvas.width,
+        y: 270,
+        w: 30,
+        h: 30
+    });
+}
+
 function update() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // movement
-    player.vx = 0;
-    if (keys["ArrowLeft"]) player.vx = -4;
-    if (keys["ArrowRight"]) player.vx = 4;
+    // gravity
+    player.vy += 0.6;
+    player.y += player.vy;
+
+    if (player.y >= 250) {
+        player.y = 250;
+        player.vy = 0;
+        player.onGround = true;
+    }
+
     if (keys["ArrowUp"] && player.onGround) {
         player.vy = -12;
         player.onGround = false;
     }
 
-    player.vy += 0.6;
-    player.x += player.vx;
-    player.y += player.vy;
+    if (keys["ArrowLeft"] && player.x > 0) player.x -= 5;
+    if (keys["ArrowRight"] && player.x < canvas.width - player.w) player.x += 5;
 
-    // collision platform
-    player.onGround = false;
-    platforms.forEach(p => {
-        if (
-            player.x < p.x + p.w &&
-            player.x + player.w > p.x &&
-            player.y + player.h < p.y + 20 &&
-            player.y + player.h > p.y
-        ) {
-            player.y = p.y - player.h;
-            player.vy = 0;
-            player.onGround = true;
-        }
-    });
-
-    // draw platform
-    ctx.fillStyle = "#1e293b";
-    platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
-
-    // coins
-    coins.forEach(c => {
-        if (!c.taken) {
-            ctx.drawImage(coinImg, c.x, c.y, 24, 24);
-            if (
-                player.x < c.x + 24 &&
-                player.x + player.w > c.x &&
-                player.y < c.y + 24 &&
-                player.y + player.h > c.y
-            ) {
-                c.taken = true;
-            }
-        }
-    });
-
-    // draw player
+    // player
     ctx.drawImage(playerImg, player.x, player.y, player.w, player.h);
 
-    // lose
-    if (player.y > canvas.height) end("KALAH 💀");
+    // obstacles
+    if (Math.random() < 0.02) spawnObstacle();
 
-    // win
-    if (coins.every(c => c.taken)) end("MENANG 🏆");
+    obstacles.forEach((o, i) => {
+        o.x -= 5;
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+
+        // collision
+        if (
+            player.x < o.x + o.w &&
+            player.x + player.w > o.x &&
+            player.y < o.y + o.h &&
+            player.y + player.h > o.y
+        ) {
+            endGame("KALAH 💀");
+        }
+    });
+
+    score++;
+    ctx.fillStyle = "white";
+    ctx.fillText("Skor: " + score, 10, 20);
 
     requestAnimationFrame(update);
 }
 
-function end(msg){
+function endGame(msg) {
     document.getElementById("text").textContent = msg;
     document.getElementById("overlay").style.display = "flex";
 }
 
-function restart(){
+function restart() {
     init();
 }
 
@@ -178,5 +170,3 @@ update();
 
 </body>
 </html>
-
-
